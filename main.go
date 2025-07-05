@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 func getEnv(key, fallback string) string {
@@ -59,26 +60,41 @@ func main() {
 		panic(err)
 	}
 
-	var bt_session C.sessionHandle
-	fmt.Println(reflect.TypeOf(bt_session))
+	var btSession C.sessionHandle
+	fmt.Println(reflect.TypeOf(btSession))
 
-	sessionResult := C.openSession(C.ACEBT_SESSION_TYPE_DUAL_MODE, &bt_session)
-	defer C.closeSession(bt_session)
+	sessionResult := C.openSession(C.ACEBT_SESSION_TYPE_DUAL_MODE, &btSession)
+	defer C.closeSession(btSession)
 
 	fmt.Printf("Opening session result %d\n", sessionResult)
-	fmt.Printf("bt_session: %+v\n", bt_session)
+	fmt.Printf("btSession: %+v\n", btSession)
 
-	bleResult := C.bleRegister(bt_session)
-	defer C.bleDeregister(bt_session)
+	bleResult := C.bleRegister(btSession)
+	defer C.bleDeregister(btSession)
 	fmt.Printf("Opening BLE result %d\n", bleResult)
 
 	if bleResult != 0 {
 		panic("Couldn't open BLE")
 	}
 
-	gattcResult := C.bleRegisterGattClient(bt_session)
-	defer C.bleDeregisterGattClient(bt_session)
+	gattcResult := C.bleRegisterGattClient(btSession)
+	defer C.bleDeregisterGattClient(btSession)
 	fmt.Printf("Register GATT Client result %d\n", gattcResult)
+
+	bleAddrStr := C.CString("2C:CF:67:B8:DC:3F")
+	defer C.free(unsafe.Pointer(bleAddrStr))
+	var bleAddr C.bdAddr_t
+	bdaddrconvStatus := C.utilsConvertStrToBdAddr(bleAddrStr, &bleAddr)
+	fmt.Printf("Converted str BT addr %s, result %d\n", bleAddrStr, bdaddrconvStatus)
+
+	var connHandle C.bleConnHandle
+	connStatus := C.bleConnect(
+		btSession, &connHandle, &bleAddr, C.ACE_BT_BLE_CONN_PARAM_BALANCED,
+		C.ACEBT_BLE_GATT_CLIENT_ROLE, C.ACE_BT_BLE_CONN_PRIO_MEDIUM,
+	)
+	defer C.bleDisconnect(connHandle)
+
+	fmt.Printf("Connection status %d\n", connStatus)
 
 	time.Sleep(8 * time.Second)
 
