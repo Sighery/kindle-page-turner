@@ -8,17 +8,39 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"syscall"
 	"strconv"
+	"syscall"
 	"time"
 )
 
 func getEnv(key, fallback string) string {
-    value, exists := os.LookupEnv(key)
-    if !exists {
-        value = fallback
-    }
-    return value
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		value = fallback
+	}
+	return value
+}
+
+func useBluetoothPrivileges() error {
+	groupId, err := strconv.Atoi(getEnv("BLUETOOTH_GROUP_ID", "1003"))
+	if err != nil {
+		return err
+	}
+	userId, err := strconv.Atoi(getEnv("BLUETOOTH_USER_ID", "1003"))
+	if err != nil {
+		return err
+	}
+
+	err = syscall.Setgid(groupId)
+	if err != nil {
+		return err
+	}
+	err = syscall.Setuid(userId)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func main() {
@@ -32,21 +54,7 @@ func main() {
 
 	// Dropping privileges
 	fmt.Println("Dropping privileges")
-
-	groupId, err := strconv.Atoi(getEnv("BLUETOOTH_GROUP_ID", "1003"))
-	if err != nil {
-		panic(err)
-	}
-	userId, err := strconv.Atoi(getEnv("BLUETOOTH_USER_ID", "1003"))
-	if err != nil {
-		panic(err)
-	}
-
-	err = syscall.Setgid(groupId)
-	if err != nil {
-		panic(err)
-	}
-	err = syscall.Setuid(userId)
+	err := useBluetoothPrivileges()
 	if err != nil {
 		panic(err)
 	}
@@ -55,12 +63,15 @@ func main() {
 	fmt.Println(reflect.TypeOf(bt_session))
 
 	sessionResult := C.openSession(C.ACEBT_SESSION_TYPE_DUAL_MODE, &bt_session)
+	defer C.closeSession(bt_session)
+
 	fmt.Printf("Opening session result %d\n", sessionResult)
 	fmt.Printf("bt_session: %+v\n", bt_session)
 
+	bleResult := C.bleRegister(bt_session)
+	defer C.bleDeregister(bt_session)
+	fmt.Printf("Opening BLE result %d\n", bleResult)
 	time.Sleep(8 * time.Second)
 
 	fmt.Println("Finishing program")
-
-	defer C.closeSession(bt_session)
 }
