@@ -71,6 +71,15 @@ func main() {
 	bleResult := C.bleRegister(bt_session)
 	defer C.bleDeregister(bt_session)
 	fmt.Printf("Opening BLE result %d\n", bleResult)
+
+	if bleResult != 0 {
+		panic("Couldn't open BLE")
+	}
+
+	gattcResult := C.bleRegisterGattClient(bt_session)
+	defer C.bleDeregisterGattClient(bt_session)
+	fmt.Printf("Register GATT Client result %d\n", gattcResult)
+
 	time.Sleep(8 * time.Second)
 
 	fmt.Println("Finishing program")
