@@ -1,48 +1,19 @@
 package main
 
-// #include <stdlib.h>
-// #include "kindlebt.h"
+/*
+#include <stdlib.h>
+#include <kindlebt.h>
+#include "goglue.c"
+*/
 import "C"
 
 import (
 	"fmt"
-	"os"
 	"reflect"
-	"strconv"
-	"syscall"
 	"time"
 	"unsafe"
 )
 
-func getEnv(key, fallback string) string {
-	value, exists := os.LookupEnv(key)
-	if !exists {
-		value = fallback
-	}
-	return value
-}
-
-func useBluetoothPrivileges() error {
-	groupId, err := strconv.Atoi(getEnv("BLUETOOTH_GROUP_ID", "1003"))
-	if err != nil {
-		return err
-	}
-	userId, err := strconv.Atoi(getEnv("BLUETOOTH_USER_ID", "1003"))
-	if err != nil {
-		return err
-	}
-
-	err = syscall.Setgid(groupId)
-	if err != nil {
-		return err
-	}
-	err = syscall.Setuid(userId)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func main() {
 	fmt.Println("Hello World from Kindle and Golang!")
@@ -55,7 +26,7 @@ func main() {
 
 	// Dropping privileges
 	fmt.Println("Dropping privileges")
-	err := useBluetoothPrivileges()
+	err := UseBluetoothPrivileges()
 	if err != nil {
 		panic(err)
 	}
@@ -77,7 +48,9 @@ func main() {
 		panic("Couldn't open BLE")
 	}
 
-	gattcResult := C.bleRegisterGattClient(btSession)
+	gattcCb := C.applicationGattcCallbacks()
+
+	gattcResult := C.bleRegisterGattClient(btSession, &gattcCb)
 	defer C.bleDeregisterGattClient(btSession)
 	fmt.Printf("Register GATT Client result %d\n", gattcResult)
 
@@ -95,6 +68,11 @@ func main() {
 	defer C.bleDisconnect(connHandle)
 
 	fmt.Printf("Connection status %d\n", connStatus)
+
+	var gattDb C.bleGattsService_t;
+	dbStatus := C.bleGetDatabase(connHandle, &gattDb)
+	fmt.Printf("GATT DB status %d\n", dbStatus)
+	fmt.Printf("%+v\n", gattDb)
 
 	time.Sleep(8 * time.Second)
 
