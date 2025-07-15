@@ -14,7 +14,6 @@ import (
 	"unsafe"
 )
 
-
 func main() {
 	fmt.Println("Hello World from Kindle and Golang!")
 
@@ -69,12 +68,53 @@ func main() {
 
 	fmt.Printf("Connection status %d\n", connStatus)
 
-	var gattDb C.bleGattsService_t;
+	var gattDb C.bleGattsService_t
 	dbStatus := C.bleGetDatabase(connHandle, &gattDb)
 	fmt.Printf("GATT DB status %d\n", dbStatus)
 	fmt.Printf("%+v\n", gattDb)
 
-	time.Sleep(8 * time.Second)
+	// Pico LED characteristic
+	uuidStr := "ff120000000000000000000000000000"
+	if len(uuidStr) % 2 != 0 {
+		panic("UUID hex string must have an even length")
+	}
+	uuidLen := len(uuidStr) / 2
+
+	characUuidStr := C.CString(uuidStr)
+	defer C.free(unsafe.Pointer(characUuidStr))
+
+	var characUuid C.uuid_t
+
+	if C.utilsConvertHexStrToByteArray(characUuidStr, (*C.uint8_t)(unsafe.Pointer(&characUuid.uu[0]))) == 0 {
+		panic("Failed to convert Characteristic UUID string")
+	}
+
+	switch uuidLen {
+	case 2:
+		C.setUUIDType(&characUuid, C.ACEBT_UUID_TYPE_16)
+	case 4:
+		C.setUUIDType(&characUuid, C.ACEBT_UUID_TYPE_32)
+	case 16:
+		C.setUUIDType(&characUuid, C.ACEBT_UUID_TYPE_128)
+	default:
+		panic(fmt.Sprintf("Unsupported UUID length: %d", uuidLen))
+	}
+
+	characRec := C.utilsFindCharRec(characUuid, C.uint8_t(uuidLen))
+	if characRec == nil {
+		panic("Couldn't find characteristic. Did you not get the GATT Database?")
+	}
+
+	fmt.Println("Enabling notification on PICO LED Characteristic")
+	notificationStatus := C.bleSetNotification(
+		btSession, connHandle, characRec.value, C.bool(true),
+	)
+	fmt.Printf("Enabled notification: %d\n", notificationStatus)
+	// Disable notification
+	defer C.bleSetNotification(
+		btSession, connHandle, characRec.value, C.bool(false),
+	)
+	time.Sleep(20 * time.Second)
 
 	fmt.Println("Finishing program")
 }
