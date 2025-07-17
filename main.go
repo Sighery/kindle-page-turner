@@ -14,6 +14,8 @@ import (
 	"unsafe"
 )
 
+var ledStatus bool
+
 func main() {
 	fmt.Println("Hello World from Kindle and Golang!")
 
@@ -110,11 +112,68 @@ func main() {
 		btSession, connHandle, characRec.value, C.bool(true),
 	)
 	fmt.Printf("Enabled notification: %d\n", notificationStatus)
+	time.Sleep(5 * time.Second)
 	// Disable notification
-	defer C.bleSetNotification(
+	notificationStatus = C.bleSetNotification(
 		btSession, connHandle, characRec.value, C.bool(false),
 	)
-	time.Sleep(20 * time.Second)
+	fmt.Printf("Disabled notification: %d\n", notificationStatus)
 
+	time.Sleep(2 * time.Second)
+
+	// C.bleWriteCharacteristic(
+	// 	btSession, connHandle, &characRec.value,
+	// 	C.ACEBT_BLE_WRITE_TYPE_RESP_REQUIRED,
+	// 	// C.ACEBT_BLE_WRITE_TYPE_RESP_NO,
+	// )
+	// return
+
+	for true {
+		fmt.Println("Reading PICO LED Characteristic")
+		readStatus := C.bleReadCharacteristic(btSession, connHandle, characRec.value)
+		fmt.Printf("Read status: %d\n", readStatus)
+
+		// Characteristic becomes busy. Need to implement some kinda semaphor or such for characRec
+		time.Sleep(1 * time.Second)
+
+		fmt.Println("Writing to LED Characteristic")
+		// Reset the shared blob before writes
+		C.freeGattBlob(&characRec.value)
+		// C.freeGattBlob((*C.bleGattBlobValue_t)(unsafe.Pointer(&characRec.value)))
+
+		var writeVal string
+		if ledStatus == true {
+			writeVal = "OFF"
+		} else {
+			writeVal = "ON"
+		}
+
+		fmt.Println("Setting to value", writeVal)
+
+		fmt.Printf("Byte array in hex %x\n", []byte(writeVal))
+
+		setGattBlob(&characRec.value, []byte(writeVal))
+
+		// setBlobOnCharacteristic(&characRec.value, []byte(writeVal))
+		// blob := createBlobFromHexBytes([]byte(writeVal))
+		// cBlobPtr := (*C.bleGattBlobValue_t)(unsafe.Pointer(&characRec.value))
+		// *cBlobPtr = blob
+		// characRec.value.format = C.BLE_FORMAT_BLOB
+
+		writeStatus := C.bleWriteCharacteristic(
+			btSession, connHandle, &characRec.value,
+			C.ACEBT_BLE_WRITE_TYPE_RESP_REQUIRED,
+			// C.ACEBT_BLE_WRITE_TYPE_RESP_NO,
+		)
+		fmt.Printf("Write result %d\n", writeStatus)
+		// C.freeGattBlob((*C.bleGattBlobValue_t)(unsafe.Pointer(&characRec.value)))
+
+		time.Sleep(2 * time.Second)
+
+		C.freeGattBlob(&characRec.value)
+	}
+
+
+	time.Sleep(5 * time.Second)
 	fmt.Println("Finishing program")
 }

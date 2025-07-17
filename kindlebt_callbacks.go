@@ -47,9 +47,59 @@ func goOnBleGattcNotifyCharsCallback(connHandle C.bleConnHandle, charsValue C.bl
 		dataSlice := C.GoBytes(unsafe.Pointer(val.data), C.int(val.size))
 
 		if isASCIIPrintable(dataSlice) {
-			fmt.Println("Received text: ", string(dataSlice))
+			fmt.Println("Received text:", string(dataSlice))
 		} else {
 			fmt.Printf("Received binary: %x\n", dataSlice)
 		}
 	}
+}
+
+
+//export goOnBleGattcReadCharsCallback
+func goOnBleGattcReadCharsCallback(connHandle C.bleConnHandle, charsValue C.bleGattCharacteristicsValue_t, status C.status_t) {
+	fmt.Println("Called Go callback! goOnBleGattcReadCharsCallback")
+
+	// Anonymous unions seem like a pain to use from Golang
+	base := uintptr(unsafe.Pointer(&charsValue))
+
+	switch charsValue.format {
+	case C.BLE_FORMAT_UINT8:
+		val := *(*C.uint8_t)(unsafe.Pointer(base))
+		fmt.Printf("Received uint8: %d\n", val)
+	case C.BLE_FORMAT_UINT16:
+		val := *(*C.uint16_t)(unsafe.Pointer(base))
+		fmt.Printf("Received uint16: %d\n", val)
+	case C.BLE_FORMAT_UINT32:
+		val := *(*C.uint32_t)(unsafe.Pointer(base))
+		fmt.Printf("Received uint32: %d\n", val)
+	case C.BLE_FORMAT_SINT8:
+		val := *(*C.int8_t)(unsafe.Pointer(base))
+		fmt.Printf("Received int8: %d\n", val)
+	case C.BLE_FORMAT_SINT16:
+		val := *(*C.int16_t)(unsafe.Pointer(base))
+		fmt.Printf("Received int16: %d\n", val)
+	case C.BLE_FORMAT_SINT32:
+		val := *(*C.int32_t)(unsafe.Pointer(base))
+		fmt.Printf("Received int32: %d\n", val)
+	case C.BLE_FORMAT_BLOB:
+		val := *(*C.bleGattBlobValue_t)(unsafe.Pointer(base))
+		dataSlice := C.GoBytes(unsafe.Pointer(val.data), C.int(val.size))
+
+		if isASCIIPrintable(dataSlice) {
+			msg := string(dataSlice)
+			fmt.Println("Received text:", msg)
+			if msg == "ON" {
+				ledStatus = true
+			} else {
+				ledStatus = false
+			}
+		} else {
+			fmt.Printf("Received binary: %x\n", dataSlice)
+		}
+	}
+}
+
+//export goOnBleGattcWriteCharsCallback
+func goOnBleGattcWriteCharsCallback(connHandle C.bleConnHandle, charsValue C.bleGattCharacteristicsValue_t, status C.status_t) {
+	fmt.Println("Called Go callback! goOnBleGattcWriteCharsCallback")
 }
