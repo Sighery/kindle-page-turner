@@ -44,3 +44,4 @@ func isASCIIPrintable(data []byte) bool {
 	}
 	return true
 }
+

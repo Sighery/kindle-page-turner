@@ -8,6 +8,10 @@ __attribute__((unused)) static bleGattClientCallbacks_t applicationGattcCallback
         goOnBleGattcGetGattDbCallback;
     application_gatt_client_callbacks.notify_characteristics_cb =
         goOnBleGattcNotifyCharsCallback;
+    application_gatt_client_callbacks.on_ble_gattc_read_characteristics_cb =
+        goOnBleGattcReadCharsCallback;
+    application_gatt_client_callbacks.on_ble_gattc_write_characteristics_cb =
+        goOnBleGattcWriteCharsCallback;
     return application_gatt_client_callbacks;
 }
 
