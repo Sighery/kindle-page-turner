@@ -34,7 +34,7 @@ The most important ones are:
   `.envrc` assumes `kindlehf`)
 * set up `CC`: this should point to the `gcc` compiler binary for your target
 * set up `CGO_CFLAGS`: compiler flags. This should point to the path where the
-  `kindlebt` header files are in your system
+  `kindlebt` and `ace_bt` header files are in your system.
 * set up `CGO_LDFLAGS`: linker flags. This should point to the path where
   `libkindlebt.so` is in your system
 
