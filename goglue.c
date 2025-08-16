@@ -18,3 +18,7 @@ __attribute__((unused)) static bleGattClientCallbacks_t applicationGattcCallback
 __attribute__((unused)) static void setUUIDType(uuid_t* uuid, UUIDType_t newType) {
     uuid->type = newType;
 }
+
+__attribute__((unused)) static uuid_t extractUuid(bleGattCharacteristicsValue_t value) {
+    return value.gattRecord.uuid;
+}

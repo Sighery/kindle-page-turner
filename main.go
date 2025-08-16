@@ -2,6 +2,7 @@ package main
 
 /*
 #include <stdlib.h>
+#include <kindlebt_log.h>
 #include <kindlebt.h>
 #include "goglue.c"
 */
@@ -15,9 +16,12 @@ import (
 )
 
 var ledStatus bool
+var completionMgr = NewCompletionManager()
 
 func main() {
 	fmt.Println("Hello World from Kindle and Golang!")
+
+	C.kindlebt_set_log_level(C.int(1));
 
 	isBLE := C.isBLESupported()
 	fmt.Printf("Is BLE supported? %t\n", isBLE)
@@ -77,29 +81,9 @@ func main() {
 
 	// Pico LED characteristic
 	uuidStr := "ff120000000000000000000000000000"
-	if len(uuidStr) % 2 != 0 {
-		panic("UUID hex string must have an even length")
-	}
-	uuidLen := len(uuidStr) / 2
-
-	characUuidStr := C.CString(uuidStr)
-	defer C.free(unsafe.Pointer(characUuidStr))
-
-	var characUuid C.uuid_t
-
-	if C.utilsConvertHexStrToByteArray(characUuidStr, (*C.uint8_t)(unsafe.Pointer(&characUuid.uu[0]))) == 0 {
-		panic("Failed to convert Characteristic UUID string")
-	}
-
-	switch uuidLen {
-	case 2:
-		C.setUUIDType(&characUuid, C.ACEBT_UUID_TYPE_16)
-	case 4:
-		C.setUUIDType(&characUuid, C.ACEBT_UUID_TYPE_32)
-	case 16:
-		C.setUUIDType(&characUuid, C.ACEBT_UUID_TYPE_128)
-	default:
-		panic(fmt.Sprintf("Unsupported UUID length: %d", uuidLen))
+	characUuid, uuidLen, err := uuidStrToUuidC(uuidStr)
+	if err != nil {
+		panic(err)
 	}
 
 	characRec := C.utilsFindCharRec(characUuid, C.uint8_t(uuidLen))
@@ -121,25 +105,19 @@ func main() {
 
 	time.Sleep(2 * time.Second)
 
-	// C.bleWriteCharacteristic(
-	// 	btSession, connHandle, &characRec.value,
-	// 	C.ACEBT_BLE_WRITE_TYPE_RESP_REQUIRED,
-	// 	// C.ACEBT_BLE_WRITE_TYPE_RESP_NO,
-	// )
-	// return
+	for i := 0; i < 20; i++ {
+		fmt.Println("Main uuid is:", uuidStr)
 
-	for true {
 		fmt.Println("Reading PICO LED Characteristic")
 		readStatus := C.bleReadCharacteristic(btSession, connHandle, characRec.value)
 		fmt.Printf("Read status: %d\n", readStatus)
 
-		// Characteristic becomes busy. Need to implement some kinda semaphor or such for characRec
-		time.Sleep(1 * time.Second)
+		completionMgr.Wait(uuidStr)
+		fmt.Println("Waited for read release")
 
 		fmt.Println("Writing to LED Characteristic")
 		// Reset the shared blob before writes
 		C.freeGattBlob(&characRec.value)
-		// C.freeGattBlob((*C.bleGattBlobValue_t)(unsafe.Pointer(&characRec.value)))
 
 		var writeVal string
 		if ledStatus == true {
@@ -149,16 +127,8 @@ func main() {
 		}
 
 		fmt.Println("Setting to value", writeVal)
-
 		fmt.Printf("Byte array in hex %x\n", []byte(writeVal))
-
 		setGattBlob(&characRec.value, []byte(writeVal))
-
-		// setBlobOnCharacteristic(&characRec.value, []byte(writeVal))
-		// blob := createBlobFromHexBytes([]byte(writeVal))
-		// cBlobPtr := (*C.bleGattBlobValue_t)(unsafe.Pointer(&characRec.value))
-		// *cBlobPtr = blob
-		// characRec.value.format = C.BLE_FORMAT_BLOB
 
 		writeStatus := C.bleWriteCharacteristic(
 			btSession, connHandle, &characRec.value,
@@ -166,11 +136,12 @@ func main() {
 			// C.ACEBT_BLE_WRITE_TYPE_RESP_NO,
 		)
 		fmt.Printf("Write result %d\n", writeStatus)
-		// C.freeGattBlob((*C.bleGattBlobValue_t)(unsafe.Pointer(&characRec.value)))
 
-		time.Sleep(2 * time.Second)
+		completionMgr.Wait(uuidStr)
+		fmt.Println("Waited until write release")
 
 		C.freeGattBlob(&characRec.value)
+		fmt.Println("Cleaned blob")
 	}
 
 

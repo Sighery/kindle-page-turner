@@ -97,9 +97,17 @@ func goOnBleGattcReadCharsCallback(connHandle C.bleConnHandle, charsValue C.bleG
 			fmt.Printf("Received binary: %x\n", dataSlice)
 		}
 	}
+
+	uuid := uuidToString(C.extractUuid(charsValue))
+	fmt.Println("read uuid is:", uuid)
+	completionMgr.Notify(uuid)
 }
 
 //export goOnBleGattcWriteCharsCallback
 func goOnBleGattcWriteCharsCallback(connHandle C.bleConnHandle, charsValue C.bleGattCharacteristicsValue_t, status C.status_t) {
 	fmt.Println("Called Go callback! goOnBleGattcWriteCharsCallback")
+
+	uuid := uuidToString(C.extractUuid(charsValue))
+	fmt.Println("write uuid is:", uuid)
+	completionMgr.Notify(uuid)
 }

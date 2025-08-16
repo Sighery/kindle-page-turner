@@ -14,5 +14,6 @@ __attribute__((unused)) static bleGattClientCallbacks_t applicationGattcCallback
 
 // Util helpers
 __attribute__((unused)) static void setUUIDType(uuid_t*, UUIDType_t);
+__attribute__((unused)) static uuid_t extractUuid(bleGattCharacteristicsValue_t value);
 
 #endif // GOGLUE_H
